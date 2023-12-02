@@ -65,7 +65,7 @@ exports.verifyEmail = async (req,res)=>{
     const token = await EmailVerificationToken.findOne({owner:userId})
     if(!token) return sendError(res,"token not found"); 
 
-    const isMatched = await token.compaireToken(OTP)
+    const isMatched = await token.compareToken(OTP)
     if(!isMatched) return sendError(res,"Please submit a valid OTP");
 
     user.isVerified = true;
@@ -90,45 +90,45 @@ exports.verifyEmail = async (req,res)=>{
     res.json({message:"Your email is verified."})
 }
 
+
 exports.resendEmailVerificationToken= async(req,res)=>{
-    const {userId} = req.body;
+  const {userId} = req.body;
+  const user = await User.findById(userId)
+  if(!user) return sendError(res,'user not found!') 
 
-    const user = await User.findById(userId)
-    if(!user) return sendError('user not found!') 
+  if(user.isVerified) return sendError(res,'This email Id is already verified!') 
 
-    if(user.isVerified) return sendError('This email Id is already verified!') 
+  const alreadyHasToken = await EmailVerificationToken.findOne({owner: userId});
 
-    const alreadyHasToken = await EmailVerificationToken.findOne({owner: userId});
+  if(alreadyHasToken) return sendError(res,'Only after one hour after you can request for another token!') 
 
-    if(alreadyHasToken) return sendError('Only after one hour after you can request for another token!') 
-   
-     // generate 6 digit otp. 
-     let OTP=generateOTP()
- 
-     // store otp inside our database.  
-     const newEmailVerificationToken = new EmailVerificationToken({
-         owner:user._id,
-         token:OTP
+   // generate 6 digit otp. 
+   let OTP=generateOTP()
+
+   // store otp inside our database.  
+   const newEmailVerificationToken = new EmailVerificationToken({
+       owner:user._id,
+       token:OTP
+   })
+
+   await newEmailVerificationToken.save()
+
+   // send that otp to our user.
+   // nodemailer webside data
+   const transport = generateMailTransporter()
+
+     // sending mail for otp 
+     transport.sendMail({
+       from:"verification@imdb.com",
+       to:user.email,
+       subject:'Email Verification',
+       html:`
+       <p>Your Verification OTP</p>
+       <h1>${OTP}</h1>
+       `
      })
- 
-     await newEmailVerificationToken.save()
- 
-     // send that otp to our user.
-     // nodemailer webside data
-     const transport = generateMailTransporter()
- 
-       // sending mail for otp 
-       transport.sendMail({
-         from:"verification@imdb.com",
-         to:user.email,
-         subject:'Email Verification',
-         html:`
-         <p>Your Verification OTP</p>
-         <h1>${OTP}</h1>
-         `
-       })
-     
-     res.status(201).json({message:"New OTP has been sent to your registered email account!"})
+   
+   res.status(201).json({message:"New OTP has been sent to your registered email account!"})
 
 }
 
