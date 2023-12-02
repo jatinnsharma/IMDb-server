@@ -1,5 +1,6 @@
 const User = require('../models/user.schema')
-
+const nodemailer = require('nodemailer')
+const EmailVerificationToken = require('../models/emailVerificationToken.schema')
 exports.create = async (req,res)=>{
     const {name,email,password} = req.body;
 
@@ -13,6 +14,24 @@ exports.create = async (req,res)=>{
     // save inside our database which async task
     await newUser.save() 
 
+    // generate 6 digit otp. 
+    let OTP=''
+    for(let i=0;i<=5;i++){
+        // Math.random() * 9 // 4.4234234234
+         let randomNumber  =Math.round(Math.random() * 9 ) // 4
+         OTP+= randomNumber;
+    }
+
+    // store otp inside our database.  
+    const newEmailVerificationToken = new EmailVerificationToken({
+        owner:newUser._id,
+        token:OTP
+    })
+
+    await newEmailVerificationToken.save()
+
+    // send that otp to our user.
+    // nodemailer webside data
     var transport = nodemailer.createTransport({
         host: "sandbox.smtp.mailtrap.io",
         port: 2525,
@@ -22,7 +41,18 @@ exports.create = async (req,res)=>{
         }
       });
 
-    res.status(201).json({user:newUser})
+      // sending mail for otp 
+      transport.sendMail({
+        from:"verification@imdb.com",
+        to:newUser.email,
+        subject:'Email Verification',
+        html:`
+        <p>Your Verification OTP</p>
+        <h1>${OTP}</h1>
+        `
+      })
+    
+    res.status(201).json({message:"Please verify your email. OTP has been sent to your email account!"})
 
 }
 
