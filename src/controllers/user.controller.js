@@ -2,13 +2,16 @@ const User = require('../models/user.schema')
 const nodemailer = require('nodemailer')
 const EmailVerificationToken = require('../models/emailVerificationToken.schema');
 const { isValidObjectId } = require('mongoose');
+const { generateOTP, generateMailTransporter } = require('../utils/mail');
+const { sendError } = require('../utils/helper');
+
+
 exports.create = async (req,res)=>{
     const {name,email,password} = req.body;
 
     const oldUser = await User.findOne({email});
 
-    if(oldUser) return res.status(401),json({error:"This email is already in use!"})
-
+    if(oldUser) return sendError(res,"This email is already in use!")
     // create new user inside our database 
     const newUser = new User({name,email,password})
 
@@ -16,12 +19,7 @@ exports.create = async (req,res)=>{
     await newUser.save() 
 
     // generate 6 digit otp. 
-    let OTP=''
-    for(let i=0;i<=5;i++){
-        // Math.random() * 9 // 4.4234234234
-         let randomNumber  =Math.round(Math.random() * 9 ) // 4
-         OTP+= randomNumber;
-    }
+    let OTP= generateOTP()
 
     // store otp inside our database.  
     const newEmailVerificationToken = new EmailVerificationToken({
@@ -33,14 +31,7 @@ exports.create = async (req,res)=>{
 
     // send that otp to our user.
     // nodemailer webside data
-    const transport = nodemailer.createTransport({
-        host: "sandbox.smtp.mailtrap.io",
-        port: 2525,
-        auth: {
-          user: "596002148130f3",
-          pass: "cebd3db9c31d88"
-        }
-      });
+    const transport = generateMailTransporter()
 
       // sending mail for otp 
       transport.sendMail({
@@ -64,17 +55,17 @@ exports.verifyEmail = async (req,res)=>{
 
     // check user is existing in database or not
     const user = await User.findById(userId);
-    if(!user) return res.json({error:"user not found!"})
+    if(!user) return sendError(res,"user not found",404);
 
     // check if user already verified or not
-    if(user.isVerified) return res.json({error:"user is already verified"});
+    if(user.isVerified) return sendError(res,"user is already verified");
 
     //check token is present or not
     const token = await EmailVerificationToken.findOne({owner:userId})
-    if(!token) return res.json({error:"token not found! "})
+    if(!token) return sendError(res,"token not found"); 
 
     const isMatched = await token.compaireToken(OTP)
-    if(!isMatched) return res.json({error:"Please submit a valid OTP"})
+    if(!isMatched) return sendError(res,"Please submit a valid OTP");
 
     user.isVerified = true;
     await user.save();
@@ -83,14 +74,7 @@ exports.verifyEmail = async (req,res)=>{
     await EmailVerificationToken.findByIdAndDelete(token._id)
 
     
-    const transport = nodemailer.createTransport({
-        host: "sandbox.smtp.mailtrap.io",
-        port: 2525,
-        auth: {
-            user: "596002148130f3",
-            pass: "cebd3db9c31d88"
-        }
-    });
+    const transport = generateMailTransporter()
 
       // sending mail for otp 
       transport.sendMail({
@@ -109,20 +93,16 @@ exports.resendEmailVerificationToken= async(req,res)=>{
     const {userId} = req.body;
 
     const user = await User.findById(userId)
-    if(!user) return res.json({error:"user not found!"})
+    if(!user) return sendError('user not found!') 
 
-    if(user.isVerified) return res.json({error:"This email Id is already verified!"})
+    if(user.isVerified) return sendError('This email Id is already verified!') 
 
     const alreadyHasToken = await EmailVerificationToken.findOne({owner: userId});
-    if(alreadyHasToken) return res.json({error:"Only after one hour after you can request for another token!"})
+
+    if(alreadyHasToken) return sendError('Only after one hour after you can request for another token!') 
    
      // generate 6 digit otp. 
-     let OTP=''
-     for(let i=0;i<=5;i++){
-         // Math.random() * 9 // 4.4234234234
-          let randomNumber  =Math.round(Math.random() * 9 ) // 4
-          OTP+= randomNumber;
-     }
+     let OTP=generateOTP()
  
      // store otp inside our database.  
      const newEmailVerificationToken = new EmailVerificationToken({
@@ -134,14 +114,7 @@ exports.resendEmailVerificationToken= async(req,res)=>{
  
      // send that otp to our user.
      // nodemailer webside data
-     const transport = nodemailer.createTransport({
-         host: "sandbox.smtp.mailtrap.io",
-         port: 2525,
-         auth: {
-           user: "596002148130f3",
-           pass: "cebd3db9c31d88"
-         }
-       });
+     const transport = generateMailTransporter()
  
        // sending mail for otp 
        transport.sendMail({
