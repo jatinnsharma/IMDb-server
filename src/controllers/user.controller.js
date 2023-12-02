@@ -33,7 +33,7 @@ exports.create = async (req,res)=>{
 
     // send that otp to our user.
     // nodemailer webside data
-    var transport = nodemailer.createTransport({
+    const transport = nodemailer.createTransport({
         host: "sandbox.smtp.mailtrap.io",
         port: 2525,
         auth: {
@@ -71,4 +71,35 @@ exports.verifyEmail = async (req,res)=>{
 
     const token = await EmailVerificationToken.findOne({owner:userId})
     if(!token) return res.json({error:"token not found! "})
+
+    const isMatched = await token.compaireToken(OTP)
+    if(!isMatched) return res.json({error:"Please submit a valid OTP"})
+
+    user.isVerified = true;
+    await user.save();
+
+    // delete email token from database 
+    await EmailVerificationToken.findByIdAndDelete(token._id)
+
+    
+    const transport = nodemailer.createTransport({
+        host: "sandbox.smtp.mailtrap.io",
+        port: 2525,
+        auth: {
+            user: "596002148130f3",
+            pass: "cebd3db9c31d88"
+        }
+    });
+
+      // sending mail for otp 
+      transport.sendMail({
+        from:"verification@imdb.com",
+        to:user.email,
+        subject:'Welcome Email',
+        html:`
+        <h1>Welcome to our app and thanks for choosing us.</h1>
+        `
+    })
+     
+    res.json({message:"Your email is verified."})
 }
