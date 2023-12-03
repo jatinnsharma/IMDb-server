@@ -167,3 +167,36 @@ exports.forgetPassword = async (req,res)=>{
   res.json({message:'Link send to your email'})
 
 }
+
+exports.sendResetPasswordTokenStatus = (req,res)=>{
+  res.json({valid:true});
+}
+
+exports.resetPassword = async (req,res)=>{
+  const {newPassword,userId} = req.body
+
+  const user = await User.findById(userId)
+  const matched = user.comparePassword(newPassword)
+  if(matched) return sendError(res,'The new password must be different from the old one!');
+
+  user.password=newPassword;
+  await user.save();
+
+  // this process will remove this token from database.
+  await PasswordResetToken.findByIdAndDelete(req.resetToken._id)
+  
+  const transport = generateMailTransporter()
+
+  transport.sendMail({
+    from:"security@imdb.com",
+    to:user.email,
+    subject:"Password Reset Successfully",
+    html:`
+    <h1>Password Reset Successfully</h1>
+    <p>Now you can new passoword.</p>
+    `
+  });
+
+  res.json({message:'Password reset successfully, now you can use new password!'})
+
+} 
