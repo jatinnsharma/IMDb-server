@@ -8,6 +8,7 @@ const userRouter = require('./routes/user.route')
 require('./db')
 const morgan = require('morgan');
 const { errorHandler } = require('./middlewares/errorHandler.middleware');
+const { handleNotFound } = require('./utils/helper');
 
 const PORT = process.env.PORT
 
@@ -18,6 +19,8 @@ app.use(morgan('dev'))
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use("/api/user", userRouter);
+
+app.use('/*',handleNotFound)
 
 app.use(errorHandler)
 
