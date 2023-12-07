@@ -29,7 +29,6 @@ exports.signInValidator = [
         .not()
         .isEmpty()
         .withMessage("Password is missing!")
-        
 ]
 
 exports.validate = (req, res, next) => {
