@@ -155,7 +155,7 @@ exports.forgetPassword = async (req, res) => {
 
   await newPasswordResetToken.save()
 
-  const resetPasswordUrl = `http://localhost:3000/reset-password?token=${token}&id=${user._id}`
+  const resetPasswordUrl = `http://localhost:3000/auth/reset-password?token=${token}&id=${user._id}`
 
   const transport = generateMailTransporter()
 
